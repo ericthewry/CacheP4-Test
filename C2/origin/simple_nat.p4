@@ -187,6 +187,10 @@ action _drop() {
     drop();
 }
 
+table drop_table {
+    actions { _drop; }
+}
+
 
 action set_if_info(ipv4_addr, mac_addr, is_ext) {
     modify_field(meta.if_ipv4_addr, ipv4_addr);
@@ -298,6 +302,8 @@ action do_rewrites(smac) {
 
 table send_frame {
     reads {
+    	ipv4 : valid;
+	tcp : valid;
         standard_metadata.egress_port: exact;
     }
     actions {
@@ -314,10 +320,15 @@ control ingress {
     // depending on direction (int -> ext or ext -> int) and existing nat rules
     apply(nat);
     // forward packet
-    if (meta.do_forward == 1 and ipv4.ttl > 0) {
-        apply(ipv4_lpm);
-        apply(forward);
+    if (valid(ipv4)){
+      if (meta.do_forward == 1 and ipv4.ttl > 0) {
+          apply(ipv4_lpm);
+          apply(forward);
+      }
+    } else {
+       apply(drop_table);
     }
+    
 }
 
 control egress {
